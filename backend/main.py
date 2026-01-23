@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from routes import error_logs, projects
+
 app = FastAPI()
 
 app.add_middleware(
@@ -11,6 +13,5 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/")
-def read_root():
-    return {"message": "Hello, World!"}
+app.include_router(error_logs.router)
+app.include_router(projects.router)
