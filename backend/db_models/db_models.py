@@ -1,16 +1,14 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
-
-
-Base = declarative_base()
+from database import Base
+from uuid import uuid4
 
 
 class ErrorLog(Base):
     __tablename__ = "error_logs"
     id = Column(Integer, primary_key=True, index=True)
     project_id = Column(Integer, ForeignKey("projects.id"))
-    log_id = Column(String, unique=True) # Long UUID string
+    log_id = Column(String, unique=True, default=lambda: str(uuid4())) # Short UUID string
     created_timestamp = Column(DateTime, default=datetime.now) # UTC timezone
     status = Column(String) # "pending", "resolved", "ignored"
     error_type = Column(String) # The type of error
@@ -23,7 +21,7 @@ class ErrorLog(Base):
 class Project(Base):
     __tablename__ = "projects"
     id = Column(Integer, primary_key=True, index=True)
-    project_uuid = Column(String, unique=True)
+    project_uuid = Column(String, unique=True, default=lambda: str(uuid4())) # Short UUID string
     project_name = Column(String)
     project_description = Column(String)
     project_created_at = Column(DateTime, default=datetime.now) # UTC timezone
