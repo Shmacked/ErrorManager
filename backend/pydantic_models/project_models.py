@@ -1,12 +1,18 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
+from datetime import datetime
+
+
+class ProjectInput(BaseModel):
+    project_name: str
+    project_description: str
 
 # This is the base model for the project
 class ProjectBase(BaseModel):
     project_name: str
     project_description: str
-    project_created_at: str
-    project_updated_at: str
+    project_created_at: datetime
+    project_updated_at: datetime
 
 # This is the model for creating a new project
 class ProjectCreate(ProjectBase):
@@ -14,9 +20,7 @@ class ProjectCreate(ProjectBase):
     project_uuid: str
 
 # This is the model for updating a project
-class ProjectUpdate(ProjectBase):
-    id: Optional[int] = None
-    project_uuid: Optional[str] = None
+class ProjectUpdate(BaseModel):
     project_name: Optional[str] = None
     project_description: Optional[str] = None
 
