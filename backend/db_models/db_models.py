@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from datetime import datetime
-from database import Base
+from backend.database import Base
 from uuid import uuid4
 
 

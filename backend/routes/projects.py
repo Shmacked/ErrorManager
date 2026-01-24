@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic_models.project_models import ProjectCreate, ProjectUpdate, ProjectResponse
-from database import get_db
+from backend.pydantic_models.project_models import ProjectCreate, ProjectUpdate, ProjectResponse
+from backend.database import get_db
 from sqlalchemy.orm import Session
-from db_models.db_models import Project
+from backend.db_models.db_models import Project
 from typing import List
 
 router = APIRouter(

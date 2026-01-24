@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic_models.error_models import ErrorLogInput, ErrorLogResponse, ErrorLogUpdate, ErrorLogBase
-from database import get_db
+from backend.pydantic_models.error_models import ErrorLogInput, ErrorLogResponse, ErrorLogUpdate, ErrorLogBase
+from backend.database import get_db
 from sqlalchemy.orm import Session
-from db_models.db_models import ErrorLog, Project
-from services.langgraph import get_evaulation_error_log_graph
+from backend.db_models.db_models import ErrorLog, Project
+from backend.services.langgraph import get_evaulation_error_log_graph
 from typing import List
 
 

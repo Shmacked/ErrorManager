@@ -1,9 +1,9 @@
 from langgraph.graph import StateGraph, START, END
-from pydantic_models.langgraph_models import ErrorLogEvaluationLanggraphState
-from pydantic_models.error_models import ErrorLogBase
+from backend.pydantic_models.langgraph_models import ErrorLogEvaluationLanggraphState
+from backend.pydantic_models.error_models import ErrorLogBase
 from langchain_ollama import ChatOllama
 from pydantic import ValidationError
-from helpers.helpers import save_langgraph_graph
+from backend.helpers.helpers import save_langgraph_graph
 
 
 llm = ChatOllama(
@@ -60,14 +60,14 @@ def get_evaulation_error_log_graph():
         response = llm.invoke(prompt)
         return {"output": response, "state": "evaluate_error_log"}
     
-    graph = StateGraph(ErrorLogEvaluationLanggraphState)
+    builder = StateGraph(ErrorLogEvaluationLanggraphState)
 
-    graph.add_node("control_node", control_node)
-    graph.add_node("parse_error_log", parse_error_log)
-    graph.add_node("evaluate_error_log", evaluate_error_log)
+    builder.add_node("control_node", control_node)
+    builder.add_node("parse_error_log", parse_error_log)
+    builder.add_node("evaluate_error_log", evaluate_error_log)
 
-    graph.add_edge(START, "control_node")
-    graph.add_conditional_edges(
+    builder.add_edge(START, "control_node")
+    builder.add_conditional_edges(
         "control_node",
         lambda state: state.state,
         {
@@ -76,8 +76,10 @@ def get_evaulation_error_log_graph():
             "END": END
         }
     )
-    graph.add_edge("parse_error_log", "control_node")
-    graph.add_edge("evaluate_error_log", "control_node")
+    builder.add_edge("parse_error_log", "control_node")
+    builder.add_edge("evaluate_error_log", "control_node")
+
+    graph = builder.compile()
 
     save_langgraph_graph("backend/images/error_log_evaluation_graph.png", graph)
-    return graph.compile()
+    return graph
