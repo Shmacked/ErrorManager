@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic_models.error_models import ProjectRequest, ProjectUpdate
 from database import get_db
+from sqlalchemy.orm import Session
+from db_models.error_models import Project
 
 router = APIRouter(
     prefix="/projects",
@@ -9,7 +11,9 @@ router = APIRouter(
 
 @router.get("/")
 def get_projects():
-    return {"message": "Projects"}
+    db = next(get_db())
+    projects = db.query(Project).all()
+    return projects
 
 @router.post("/")
 def create_project(project: ProjectRequest):

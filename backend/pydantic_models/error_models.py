@@ -1,11 +1,11 @@
-from pydantic import BaseModel, Field, Optional
-import uuid
+from pydantic import BaseModel, ConfigDict
+from typing import Optional
 
 # This is the input model for the error log from the user
 # This gets passed to the LLM for parsing
-class ErrorInput(BaseModel):
+class ErrorLogInput(BaseModel):
     project_id: int
-    error_message: str
+    traceback: str
 
 # This is the base model for the error log
 # This is used to validate the error log response from the LLM
@@ -23,6 +23,9 @@ class ErrorLogResponse(ErrorLogBase):
     log_id: str
     created_timestamp: str
     status: str
+
+    # This allows the model to be created from a database model
+    model_config = ConfigDict(from_attributes=True)
 
 # This is the model for updating the error log in the database
 class ErrorLogUpdate(BaseModel):
