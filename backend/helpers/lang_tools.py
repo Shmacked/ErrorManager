@@ -7,19 +7,37 @@ from typing import List
 
 @tool
 def get_current_date_time():
-    """Get the current date and time"""
+    """
+    Get the current date and time
+    Returns the current date and time in the format YYYY-MM-DD HH:MM:SS
+
+    Parameters: None
+    Returns: str
+    """
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 @tool
 def get_projects():
-    """Get the projects"""
+    """
+    Get the projects
+    Returns a list of projects
+
+    Parameters: None
+    Returns: List[ProjectResponse]
+    """
     db = next(get_db())
     projects = db.query(Project).all()
     return [ProjectResponse.model_validate(project) for project in projects]
 
 @tool
 def get_project(project_id: int = None, project_uuid: str = None):
-    """Get a project using the project id or uuid"""
+    """
+    Get a project using the project id or uuid. Must specify a project id or uuid.
+    Returns a project
+
+    Parameters: project_id: int = None, project_uuid: str = None
+    Returns: ProjectResponse
+    """
     db = next(get_db())
     if project_id:
         project = db.query(Project).filter(Project.id == project_id).first()
@@ -31,7 +49,13 @@ def get_project(project_id: int = None, project_uuid: str = None):
 
 @tool
 def create_project(project_name: str, project_description: str):
-    """Create a new project"""
+    """
+    Create a new project
+    Returns the newly created project
+
+    Parameters: project_name: str, project_description: str
+    Returns: ProjectResponse
+    """
     db = next(get_db())
     new_project = Project(project_name=project_name, project_description=project_description)
     db.add(new_project)
@@ -41,7 +65,13 @@ def create_project(project_name: str, project_description: str):
 
 @tool
 def update_project(project_id: int = None, project_uuid: str = None, project_name: str = None, project_description: str = None):
-    """Update a project using the project id"""
+    """
+    Update a project using the project id or uuid. Must specify a project id or uuid.
+    Returns the updated project
+
+    Parameters: project_id: int = None, project_uuid: str = None, project_name: str = None, project_description: str = None
+    Returns: ProjectResponse
+    """
     db = next(get_db())
     if project_id:
         project = db.query(Project).filter(Project.id == project_id).first()
@@ -62,9 +92,16 @@ def update_project(project_id: int = None, project_uuid: str = None, project_nam
     db.commit()
     db.refresh(project)
     return ProjectResponse.model_validate(project)
+
 @tool
 def delete_projects(project_ids: List[int] = None, project_uuids: List[str] = None):
-    """Delete a project using the project id"""
+    """
+    Delete a project using the project id or uuid. Must specify a project id or uuid.
+    Returns a list of deleted projects
+
+    Parameters: project_ids: List[int] = None, project_uuids: List[str] = None
+    Returns: List[ProjectResponse]
+    """
     db = next(get_db())
     if project_ids:
         projects = db.query(Project).filter(Project.id.in_(project_ids)).all()
