@@ -1,10 +1,10 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
+from datetime import datetime
 
 # This is the input model for the error log from the user
 # This gets passed to the LLM for parsing
 class ErrorLogInput(BaseModel):
-    project_id: int
     traceback: str
 
 # This is the base model for the error log
@@ -21,7 +21,7 @@ class ErrorLogResponse(ErrorLogBase):
     id: int
     project_id: int
     log_id: str
-    created_timestamp: str
+    created_timestamp: datetime
     status: str
 
     # This allows the model to be created from a database model
@@ -29,9 +29,9 @@ class ErrorLogResponse(ErrorLogBase):
 
 # This is the model for updating the error log in the database
 class ErrorLogUpdate(BaseModel):
-    id: Optional[int] = None
+    # id: Optional[int] = None
     project_id: int # this is the project id foreign key
-    log_id: Optional[str] = None
+    # log_id: Optional[str] = None
     status: Optional[str] = None
     error_type: Optional[str] = None
     error_message: Optional[str] = None

@@ -38,7 +38,8 @@ def create_error_log_by_project_id(project_id: int, error_log: ErrorLogInput, db
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     error_log_response = evaluation_error_log_graph.invoke({"input": error_log.traceback})
-    new_error_log = ErrorLog(project_id=project_id, **error_log_response.output.model_dump())
+    new_error_log = ErrorLogBase.model_validate(error_log_response.get("output"))
+    new_error_log = ErrorLog(project_id=project.id, **new_error_log.model_dump())
     db.add(new_error_log)
     db.commit()
     db.refresh(new_error_log)
@@ -50,7 +51,8 @@ def create_error_log_by_project_uuid(project_uuid: str, error_log: ErrorLogInput
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     error_log_response = evaluation_error_log_graph.invoke({"input": error_log.traceback})
-    new_error_log = ErrorLog(project_id=project.id, **error_log_response.output.model_dump())
+    new_error_log = ErrorLogBase.model_validate(error_log_response.get("output"))
+    new_error_log = ErrorLog(project_id=project.id, **new_error_log.model_dump())
     db.add(new_error_log)
     db.commit()
     db.refresh(new_error_log)
@@ -71,10 +73,16 @@ def get_error_log_by_error_log_log_id(error_log_log_id: str, db: Session = Depen
     return error_log
 
 @router.put("/id/{error_log_id}", response_model=ErrorLogResponse)
-def update_error_log_by_error_log_log_id(error_log_log_id: str, error_log_update: ErrorLogUpdate, db: Session = Depends(get_db)):
-    error_log = db.query(ErrorLog).filter(ErrorLog.log_id == error_log_log_id).first()
+def update_error_log_by_error_log_id(error_log_id: int, error_log_update: ErrorLogUpdate, db: Session = Depends(get_db)):
+    error_log = db.query(ErrorLog).filter(ErrorLog.id == error_log_id).first()
     if not error_log:
         raise HTTPException(status_code=404, detail="Error log not found")
+    
+    if "project_id" in error_log_update.model_dump(exclude_unset=True):
+        project = db.query(Project).filter(Project.id == error_log_update.project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+
     for key, value in error_log_update.model_dump(exclude_unset=True).items():
         setattr(error_log, key, value)
     db.commit()
@@ -86,6 +94,46 @@ def update_error_log_by_error_log_log_id(error_log_log_id: str, error_log_update
     error_log = db.query(ErrorLog).filter(ErrorLog.log_id == error_log_log_id).first()
     if not error_log:
         raise HTTPException(status_code=404, detail="Error log not found")
+    
+    if "project_id" in error_log_update.model_dump(exclude_unset=True):
+        project = db.query(Project).filter(Project.id == error_log_update.project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+    for key, value in error_log_update.model_dump(exclude_unset=True).items():
+        setattr(error_log, key, value)
+    db.commit()
+    db.refresh(error_log)
+    return error_log
+
+@router.patch("/id/{error_log_id}", response_model=ErrorLogResponse)
+def patch_error_log_by_error_log_id(error_log_id: int, error_log_update: ErrorLogUpdate, db: Session = Depends(get_db)):
+    error_log = db.query(ErrorLog).filter(ErrorLog.id == error_log_id).first()
+    if not error_log:
+        raise HTTPException(status_code=404, detail="Error log not found")
+    
+    if "project_id" in error_log_update.model_dump(exclude_unset=True):
+        project = db.query(Project).filter(Project.id == error_log_update.project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+    for key, value in error_log_update.model_dump(exclude_unset=True).items():
+        setattr(error_log, key, value)
+    db.commit()
+    db.refresh(error_log)
+    return error_log
+
+@router.patch("/log_id/{error_log_log_id}", response_model=ErrorLogResponse)
+def patch_error_log_by_error_log_log_id(error_log_log_id: str, error_log_update: ErrorLogUpdate, db: Session = Depends(get_db)):
+    error_log = db.query(ErrorLog).filter(ErrorLog.log_id == error_log_log_id).first()
+    if not error_log:
+        raise HTTPException(status_code=404, detail="Error log not found")
+    
+    if "project_id" in error_log_update.model_dump(exclude_unset=True):
+        project = db.query(Project).filter(Project.id == error_log_update.project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+
     for key, value in error_log_update.model_dump(exclude_unset=True).items():
         setattr(error_log, key, value)
     db.commit()

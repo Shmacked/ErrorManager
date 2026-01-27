@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.database import Base, engine
 import backend.db_models.db_models  # Ensure models are registered before create_all
-from backend.routes import error_logs, projects
+from backend.routes import error_logs, projects, chat
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -25,3 +25,4 @@ app.add_middleware(
 
 app.include_router(error_logs.router)
 app.include_router(projects.router)
+app.include_router(chat.router)

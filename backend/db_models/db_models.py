@@ -10,7 +10,7 @@ class ErrorLog(Base):
     project_id = Column(Integer, ForeignKey("projects.id"))
     log_id = Column(String, unique=True, default=lambda: str(uuid4())) # Short UUID string
     created_timestamp = Column(DateTime, default=datetime.now) # UTC timezone
-    status = Column(String) # "pending", "resolved", "ignored"
+    status = Column(String, default="pending") # "pending", "resolved", "ignored"
     error_type = Column(String) # The type of error
     error_message = Column(String) # The message of the error
     source = Column(String) # The source file of the error
