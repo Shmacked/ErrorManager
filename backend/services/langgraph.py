@@ -11,6 +11,7 @@ from backend.helpers.lang_tools import *
 import json
 
 
+
 llm = ChatOllama(
     model="llama3.2:latest", # the model we are using (llama3.2:3b)
     temperature=0.2, # higher temp = more creativity
@@ -155,7 +156,10 @@ def get_summary_graph():
             return {"route": "__end__"}
         prompt = [
             SystemMessage(
-                content=f"""Current summary: {summary}.
+                content=f"""
+                            YOU DO NOT HAVE DIRECT ACCESS TO ANY OF THE TOOLS YOU SEE LISTED.
+                            If you think it requires a tool call, return the string "toolbox" as your response.
+                            Current summary: {summary}.
                             Instructions: Provide direct, natural answers to the user.
                             Do not include any other text or commentary from your tool responses.
                             You are truthful and honest in your responses.
