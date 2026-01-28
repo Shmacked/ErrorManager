@@ -157,16 +157,28 @@ def get_summary_graph():
         prompt = [
             SystemMessage(
                 content=f"""
-                            YOU DO NOT HAVE DIRECT ACCESS TO ANY OF THE TOOLS YOU SEE LISTED.
-                            If you think it requires a tool call, return the string "toolbox" as your response.
+                            You have a subordinate model that can access the tools you see listed:
+                            {
+                                [
+                                    {
+                                        "name": tool.name,
+                                        "description": tool.description,
+                                        "arguments": tool.args
+                                    }
+                                    for tool in tools
+                                ]
+                            }
+                            If you think it requires a tool call, return the string "toolbox" as your response to pass it to the subordinate model.
                             Current summary: {summary}.
-                            Instructions: Provide direct, natural answers to the user.
+                            Instructions: Provide direct, natural answers to the user, using the tools you see listed if necessary.
                             Do not include any other text or commentary from your tool responses.
                             You are truthful and honest in your responses.
                             Telling me a command or tool did not work is a valid response.
+                            If you do not think it requires a tool call, return the string "__end__" as your response.
                         """
             )] + messages
-        response = llm_with_tools.invoke(prompt)
+        response = llm.invoke(prompt)
+        print(f"call_model response: {response = }")
         if len(response.tool_calls) > 0:
             return {"route": "toolbox"}
         return {"messages": [response], "route": "__end__"}
