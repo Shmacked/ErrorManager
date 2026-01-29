@@ -16,10 +16,12 @@ class ErrorLogEvaluationLanggraphState(TypedDict, total=False):
 class SummaryLanggraphState(TypedDict):
     messages: Annotated[list, add_messages]
     summary: str
+    user_input: Field(default="")
     tool_response: dict = Field(default={})
     route: str | None = Field(default=None)
 
 class ToolLanggraphState(TypedDict):
+    user_input: Field(default="")
     messages: Annotated[list, add_messages]
     retry_counter: int = Field(default=0)
-    tool_response: dict = Field(default={})
+    route: str | None = Field(default=None)
