@@ -8,8 +8,8 @@ from typing import List
 @tool
 def get_current_date_time():
     """
-    Get the current date and time
-    Returns the current date and time in the format YYYY-MM-DD HH:MM:SS
+    Get the current date and time.
+    Returns the current date and time in the format YYYY-MM-DD HH:MM:SS.
 
     Parameters: None
     Returns: str
@@ -19,8 +19,8 @@ def get_current_date_time():
 @tool
 def get_projects():
     """
-    Get the projects
-    Returns a list of projects
+    Get all projects from the database.
+    Returns a list of projects from the database.
 
     Parameters: None
     Returns: List[ProjectResponse]
@@ -32,8 +32,8 @@ def get_projects():
 @tool
 def get_project(project_id: int = None, project_uuid: str = None):
     """
-    Get a project using the project id or uuid. Must specify a project id or uuid.
-    Returns a project
+    Get a project from the database using the project id or uuid. Must specify a project id or uuid.
+    Returns a project from the database.
 
     Parameters: project_id: int = None, project_uuid: str = None
     Returns: ProjectResponse
@@ -50,8 +50,8 @@ def get_project(project_id: int = None, project_uuid: str = None):
 @tool
 def create_project(project_name: str, project_description: str):
     """
-    Create a new project
-    Returns the newly created project
+    Create a new project in the database using the project name and description.
+    Returns the newly created project from the database.
 
     Parameters: project_name: str, project_description: str
     Returns: ProjectResponse
@@ -66,8 +66,8 @@ def create_project(project_name: str, project_description: str):
 @tool
 def update_project(project_id: int = None, project_uuid: str = None, project_name: str = None, project_description: str = None):
     """
-    Update a project using the project id or uuid. Must specify a project id or uuid.
-    Returns the updated project
+    Update a project in the database using the project id or uuid. Must specify a project id or uuid.
+    Returns the updated project from the database.
 
     Parameters: project_id: int = None, project_uuid: str = None, project_name: str = None, project_description: str = None
     Returns: ProjectResponse
@@ -96,8 +96,8 @@ def update_project(project_id: int = None, project_uuid: str = None, project_nam
 @tool
 def delete_projects(project_ids: List[int] = None, project_uuids: List[str] = None):
     """
-    Delete a project using the project id or uuid. Must specify a project id or uuid.
-    Returns a list of deleted projects
+    Delete a project in the database using the project id or uuid. Must specify a project id or uuid.
+    Returns a list of deleted projects from the database.
 
     Parameters: project_ids: List[int] = None, project_uuids: List[str] = None
     Returns: List[ProjectResponse]
