@@ -16,5 +16,13 @@ router = APIRouter(
 @router.post("/summary")
 def get_summary(chat_input: ChatMessage, session_id: str = Depends(get_session_id)):
     config = {"configurable": {"thread_id": session_id}}
-    result = summary_graph.invoke({"messages": [("user", chat_input.message)]}, config=config)
+    result = summary_graph.invoke(
+        {
+            "messages": [
+                ("user", chat_input.message)
+            ],
+            "user_input": chat_input.message
+        },
+        config=config
+    )
     return result["messages"][-1].content
