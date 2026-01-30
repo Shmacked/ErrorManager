@@ -3,7 +3,20 @@ from datetime import datetime
 from backend.database import get_db
 from backend.db_models.db_models import Project
 from backend.pydantic_models.project_models import ProjectResponse, ProjectCreate, ProjectUpdate
-from typing import List
+from typing import List, Any
+
+
+@tool
+def filter_data(data: list[Any], **kwargs):
+    """
+    Filters a list of objects based on the given keyword arguments.
+    Parameters: data: list[Any], **kwargs
+    Returns: list[Any]
+    """
+    filtered_data = data
+    for k, v in kwargs.items():
+        filtered_data = filter(lambda x: getattr(x, k) == v, filtered_data)
+    return list(filtered_data)
 
 @tool
 def get_current_date_time():

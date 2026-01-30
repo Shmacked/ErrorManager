@@ -1,23 +1,31 @@
 from langgraph.graph import StateGraph, START, END
-from langchain_core.messages import AIMessage, SystemMessage, RemoveMessage, ToolMessage, HumanMessage
+from langchain_core.messages import AIMessage, SystemMessage, RemoveMessage, HumanMessage, ToolMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import tools_condition, ToolNode
+from langchain_ollama import ChatOllama, ChatOpenAI
+
 from backend.pydantic_models.langgraph_models import *
 from backend.pydantic_models.error_models import ErrorLogBase
-from langchain_ollama import ChatOllama
-from pydantic import ValidationError
+from backend.pydantic_models.project_models import ProjectResponse
 from backend.helpers.helpers import save_langgraph_graph
 from backend.helpers.lang_tools import *
+
+from pydantic import ValidationError
+from dotenv import load_dotenv
 import json
 
 
+load_dotenv()
 
-llm = ChatOllama(
-    model="llama3.2:latest", # the model we are using (llama3.2:3b)
+llm = ChatOpenAI(
+    model="gpt-4o-mini",
     temperature=0.2, # higher temp = more creativity
 )
 
 
+available_models = [
+    ProjectResponse,
+]
 tools = [
     get_current_date_time,
     get_projects,
@@ -153,199 +161,232 @@ def get_summary_graph():
         summary = state.get("summary", "")
         route = state.get("route")
         user_input = state.get("user_input", "")
+        tool_response = state.get("tool_response", None)
+        tool_evaluation = state.get("tool_evaluation", {})
+
+        prompt = f"""
+            You are a helpful assistant that can help the user with their request.
+            You have proper responses to the user. You won't ever response with "__end__" or "", for instance.
+        """
+        print(f"{messages = }")
+        print(f"{tool_response}")
+        if tool_response:
+            tool = next((tool for tool in tools if tool.name == tool_response.name), None)
+            prompt = f"""
+            {prompt}
+            You have a subordinate model made a tool call on your behalf. Here is a description of what the tool does:
+            {tool.description}
+            In the below ToolMessage is the result of the tool call from your subordinate model:
+            {tool_response}
+            It may not be as helpful, but here is the evaluation of the tool call:
+            {tool_evaluation}
+            The ToolMessage is more important than the evaluation.
+            Use the evaluation if the evaluation alludes to a problem with the tool call, or that the tool call was not successful.
+            Use this information to respond to the user's input.
+            DO NOT MAKE UP INFORMATION, ONLY RESPOND WITH THE INFORMATION YOU HAVE AVAILABLE TO YOU FROM ABOVE IN THE TOOLMESSAGE.
+            You do not let the user know that you are using a subordinate model, or that you are using tools.
+            A simple response is a perfectly valid response.
+            """
+        else:
+            prompt = f"""
+            You have a subordinate model that can access the tools you see listed:
+            {
+                [
+                    {
+                        "name": tool.name,
+                        "description": tool.description,
+                        "arguments": tool.args
+                    }
+                    for tool in tools
+                ]
+            }
+            {prompt}
+            IF YOU THINK IT REQUIRES A TOOL CALL OR THAT IT CAN BE PERFORMED WITH A TOOL CALL, RETURN ONLY THE STRING "TOOLBOX" AS YOUR RESPONSE.
+            You do not have direct access to any of the tools you see listed, but you have indirect access to them through your subordinate model.
+            It can make tool calls on your behalf, you need only to respond with the string "TOOLBOX" as your response and it will do the rest.
+            This can include the user asking you to make a tool call, or you deciding to make a tool call yourself.
+            Just to reiterate, return ONLY THE STRING "TOOLBOX" as your response to pass it to the subordinate model.
+            You don't let the user know that you are using a subordinate model, or that you are using tools.
+            """
         
-        if route == "toolbox":
-            print("EXITING")
-            return {"route": "__end__"}
-        prompt = [
-            SystemMessage(
-                content=f"""
-                            You are a helpful assistant that can help the user with their request.
-                            You have proper responses to the user. You won't ever response with "__end__", for instance.
-                            You have a subordinate model that can access the tools you see listed:
-                            {
-                                [
-                                    {
-                                        "name": tool.name,
-                                        "description": tool.description,
-                                        "arguments": tool.args
-                                    }
-                                    for tool in tools
-                                ]
-                            }
-                            IF YOU THINK IT REQUIRES A TOOL CALL, RETURN THE STRING "TOOLBOX" AS YOUR RESPONSE.
-                            You do not have direct access to any of the tools you see listed, but you have indirect access to them through your subordinate model.
-                            It can make tool calls on your behalf, you need only to respond with the string "TOOLBOX" as your response and it will do the rest.
-                            This can include the user asking you to make a tool call, or you deciding to make a tool call yourself.
-                            Just to reiterate, return "TOOLBOX" as your response to pass it to the subordinate model.
-                            You don't let the user know that you are using a subordinate model, or that you are using tools.
-                            Current summary: {summary}.
-                            Instructions: Provide direct, natural answers to the user from the information you have available to you.
-                            If you do not think it requires a tool call, return the string "__end__" as your response.
-                        """
-            )] + messages
+        prompt = f"""
+        {prompt}
+        Current summary: {summary}.
+        Instructions: Provide direct, natural answers to the user's prompt using the information you have available to you.
+        """
+
+        prompt = [SystemMessage(content=prompt)] + messages
         response = llm.invoke(prompt)
+
+        # print(f"{prompt = }")
+        # print(f"{response}")
+
         if response.content == "TOOLBOX":
             return {"route": "toolbox"}
         return {"messages": [response], "route": "__end__"}
 
     def get_toolbox_graph():
+
+        def plan_tool_calls(state: ToolLanggraphState) -> ToolLanggraphState:
+            messages = state.get("messages", [])
+            user_input = state.get("user_input", "")
+            route = state.get("route", None)
+            retry_counter = state.get("retry_counter", 0)
+            plan = state.get("plan", "")
+            tool_calls = state.get("tool_calls", [])
+
+            print("START PLAN")
+
+            prompt = f"""
+            You are a helpful assistant that can help the user with their request.
+            You have a subordinate model that can access the tools you see listed:
+            {
+                [
+                    {
+                        "name": tool.name,
+                        "description": tool.description,
+                        "arguments": tool.args
+                    }
+                    for tool in tools
+                ]
+            }
+            Your job is to think step by step through the user's input to create a plan for another LLM to achieve the user's input or provide the information they need using tool calls and stored messages.
+            Create and return ONLY THE PLAN as a string that would use the tools and stored messages to achieve the user's input or provide the information they need.
+            An example user input might be: "Can you delete all of the projects?"
+            A plan to achieve the example user input would be:
+            1. Get all of the projects using the get_projects tool
+            2. Extract the project IDs from the projects you just pulled
+            3. Delete the projects using the delete_projects tool and the project IDs
+            You only respond with the plan, you do not perform any tool calls, or output anything else.
+            If it is impossible to create a plan with the given tools to achieve the user's input, return the string "__end__" as your response.
+            """
+            response = llm.invoke([
+                SystemMessage(content=prompt),
+                HumanMessage(content=f"{user_input}")
+            ])
+
+            print(f"{response = }")
+
+            print("END PLAN")
+
+            if response.content == "__end__":
+                return {
+                    "messages": [
+                        ToolMessage(name="tool_box", content="__end__"),
+                        HumanMessage(content="I'm sorry, I'm unable to create a plan to achieve the user's input with the given tools.")
+                    ], 
+                    "route": END
+                }
+
+            return {"plan": response.content, "route": "tool_box"}
+
+
         def tool_box(state: ToolLanggraphState) -> ToolLanggraphState:
             messages = state.get("messages", [])
             retry_counter = state.get("retry_counter", 0)
             user_input = state.get("user_input", "")
             route = state.get("route", None)
-            
-            print("START TOOLBOX")
+            plan = state.get("plan", "")
+            tool_calls = state.get("tool_calls", [])
 
-            response = llm_with_tools.invoke(
+            print("START TOOL BOX")
+
+            print(f"{'\n'.join([str(tool_call) for tool_call in tool_calls])}")
+
+            tool_response = llm_with_tools.invoke(
                 [
-                    SystemMessage(
-                        content=f"""
-                        Your only job is to use the tools you see listed to accomplish the user's request or provide a response to the user's input.
-                        IMPORTANT: When calling tools, you must provide raw values (strings, numbers, lists). 
-                        NEVER use Python code, variable names, or function calls as arguments.
-                        NEVER guess at the arguments for the tools. For instance:
-                        If you need information to perform a task, you should call the appropriate tool to get the information to use in your response or make subsequent tool calls.
-                        If the user asks to delete all of the projects, you should not guess the project IDs and pass them in as an argument.
-                        You should call the 'get_projects' tool to get the IDs of all the projects, then call the 'delete_projects' tool and pass in the IDs of the projects to delete.
-                        You think critically about how to call the tools to get the best result.
-                        You think critically about how to obtain information from the tools to use in your response or make subsequent tool calls.
-                        For example, if the user asks to delete all of the projects, you should call the "get_projects" tool to get the IDs of all the projects, then call the "delete_projects" tool and pass in the IDs of the projects to delete.
-                        If you do not succeed, you try again, up to 5 times, which I will track for you.
-                        You must return a truthful and accurate response to the user's input.
-                        """
-                    ),
-                    (
-                        HumanMessage(
-                            content=user_input
-                        )
-                    )
-                ] + messages[-2:])
+                    SystemMessage(content=f"""
+                    YOUR ONE AND ONLY JOB IS TO PERFORM THE PROPER TOOL CALLS AND RETURN THE RESULTS BASED ON THE PLAN PROVIDED TO YOU AND ANY DATA GIVEN TO YOU.
+                    IMPORTANT: YOU DO NOT MAKE A PLAN, YOU EXECUTE THE PLAN PROVIDED TO YOU.
+                    You have these tools available to you:
+                    {tools}
+                    Here are the available models you can use to parse or filter data:
+                    {[model.model_fields for model in available_models]}
+                    Here is the plan to be executed:
+                    {plan}
+                    You might see additional feedback below this message that might help you follow the plan.
+                    If you are thinking about outputting "", explain why.
+                    Tell me why you also might be struggling to follow the plan.
+                    Here are the tool calls you have made so far:
+                    {tool_calls}
+                    """)
+                ] + messages[-5:]
+            )
 
-            print(f"{response = }")
-            
-            print("END TOOLBOX")
+            print(f"Messages: {'\n'.join([message.content if message.content != "" else "tool call" for message in messages])}")
+            print(f"{tool_response = }")
 
-            return {
-                "messages": [response]
-            }
-        
-        def call_tools(state: ToolLanggraphState) -> ToolLanggraphState:
-            messages = state.get("messages", [])
-            retry_counter = state.get("retry_counter", 0)
-            user_input = state.get("user_input", "")
-            route = state.get("route", None)
+            print("END TOOL BOX")
 
-            responses = []
-
-            print("START TOOLS")
-
-            if len(messages[-1].tool_calls) == 0:
-                print("NO TOOL CALLS")
-                print("END TOOLS")
-                return {
-                    "messages": messages,
-                    "route": "tool_box"
-                }
-            
-            for tool_call in messages[-1].tool_calls:
-                selected_tool = next(t for t in tools if t.name == tool_call.get("name"))
-                try:
-                    tool_output = selected_tool.invoke(tool_call.get("args"))
-                except Exception as e:
-                    tool_output = f"Error calling tool: {str(e)}"
-                responses.append(ToolMessage(
-                    content=tool_output,
-                    tool_call_id=tool_call.get("id")
-                ))
-
-            print("END TOOLS")
-            
-            return {
-                "messages": responses
-            }
+            if len(tool_response.tool_calls) > 0:
+                print("TOOL BOX - TOOL CALL")
+                return {"messages": [tool_response], "route": "evaluate_tool_response"}
+            else:
+                if tool_response.content == "":
+                    print("TOOL BOX - \"\"")
+                    return {"messages": [HumanMessage(content="Please phrase your request more clearly.")]}
+                else:
+                    print("TOOL BOX - NOT \"\"")
+                    return {"messages": [HumanMessage(content=tool_response.content)], "route": "tool_box"}
         
         def evaluate_tool_response(state: ToolLanggraphState) -> ToolLanggraphState:
             messages = state.get("messages", [])
             retry_counter = state.get("retry_counter", 0)
-            retry_counter += 1
             user_input = state.get("user_input", "")
             route = state.get("route", None)
+            plan = state.get("plan", "")
+            tool_calls = state.get("tool_calls", [])
 
-            print("START EVALUATE")
+            llm_with_schema = llm.with_structured_output(EvaluationSchema)
 
-            if retry_counter > 4:
-                error_msg = AIMessage(content="I'm sorry, I'm unable to process your request.")
-                print(f"{state = }")
-                return {
-                    "messages": [error_msg],
-                    "route": "__end__"
-                }
-            
-            response = llm.invoke(
-                [
-                    SystemMessage(
-                        content=f"""
-                        You are a helpful assistant that can help evaluate tool responses to a user's input.
-                        You do not make the tool call. You only evaluate the tool response.
-                        Evaluating the response is your one and only job.
-                        Here is the User's input. User's input: {user_input}.
-                        You look at the whole tool response and determine if it is successful or not.
-                        Success is defined as the tool response being able to accomplish the user's request or provide a response to the user's input.
-                        If you think the tool response is successful, return the JSON object {{"status": "SUCCESS", "critique": ""}} as your response.
-                        If you think the tool response is not successful, return the JSON object {{"status": "FAILURE", "critique": *Your critique of the tool response*}} as your response.
-                        You will find the other messages attached to potentially assist you.
-                        You only respond with the JSON object, no other text or commentary.
-                        An empty JSON response is not a valid response.
-                        The next message is the tool response to be evaluated.
-                        """
-                    )
-                ] + [messages[-1]]
-            )
+            print("START EVALUATE TOOL")
+            tool_message = messages[-1]
 
-            print(f"{'\n'.join([e.content for e in messages[-3:]]) = }")
+            evaluation = llm_with_schema.invoke([
+                SystemMessage(content=f"""
+                    Your one and only job is to evaluate the tool response and return the results based on the User's input.
+                    The main question goal is does the tool response answer the User's input or perform the task they asked for?
+                    Here is the User's input: {user_input}.
+                    Here is the tool response to be evaluated: {tool_message}.
+                    You do not make up any information, you only answer based on the tool response and the User's input.
+                    You can not make tool calls, you only answer based on the tool response and the User's input.
+                    If the tool response answers the User's input or performs the task they asked for, the success should be True and the response should be the tool response. This is largely determined by if there was an error in the tool call.
+                    If the tool response does not answer the User's input or perform the task they asked for, the success should be False and the response should be the tool response.
+                    If the tool is successful, return the tool response as the response.
+                    """
+                )
+            ])
+            print(f"{tool_message = }")
+            print(f"{evaluation = }")
+            print("END EVALUATION")
 
-            print(f"{response.content = }")
-
-            try:
-                _output = json.loads(response.content)
-                status = _output.get("status", "")
-                critique = _output.get("critique", "")
-            except json.JSONDecodeError as e:
-                return {"route": "tool_box",}
-
-            if critique == "":
-                return {"route": "tool_box",}
-            messages.append(AIMessage(content=critique))
-
-            print("END EVALUATE")
-
-            if status == "SUCCESS":
-                return {"route": "__end__", "messages": messages, "retry_counter": retry_counter}
-            elif status == "FAILURE":
-                return {"route": "tool_box", "messages": messages, "retry_counter": retry_counter}
+            if evaluation.success:
+                print("END EVALUATION: SUCCESS")
+                return {"route": END, "tool_evaluation": evaluation, "tool_response": tool_message, "tool_calls": [tool_message]}
             else:
-                return {"route": "evaluate_tool_response", "messages": messages, "retry_counter": retry_counter}
-
+                print("END EVALUATION: FAILURE")
+                return {"messages": [HumanMessage(content=evaluation.response)], "route": "tool_box", "tool_calls": [tool_message]}
 
         child_builder = StateGraph(ToolLanggraphState)
         child_builder.add_node("tool_box", tool_box)
-        child_builder.add_node("call_tools", call_tools)
+        child_builder.add_node("plan_tool_calls", plan_tool_calls)
+        child_builder.add_node("tools", ToolNode(tools))
         child_builder.add_node("evaluate_tool_response", evaluate_tool_response)
 
-        child_builder.add_edge(START, "tool_box")
-        child_builder.add_edge("tool_box", "call_tools")
-        child_builder.add_edge("call_tools", "evaluate_tool_response")
-        child_builder.add_conditional_edges(
-            "evaluate_tool_response",
-            lambda state: state.get("route"),
-            {
-                "tool_box": "tool_box",
-                "evaluate_tool_response": "evaluate_tool_response",
-                END: END
-            }
-        )
+        child_builder.add_edge(START, "plan_tool_calls")
+        child_builder.add_conditional_edges("plan_tool_calls", lambda state: state.get("route"), {
+            "tool_box": "tool_box",
+            "__end__": END
+        })
+        child_builder.add_conditional_edges("tool_box", tools_condition, {
+            "tools": "tools",
+            "__end__": "tool_box"
+        })
+        child_builder.add_conditional_edges("evaluate_tool_response", lambda state: state.get("route"), {
+            "tool_box": "tool_box",
+            END: END
+        })
+        child_builder.add_edge("tools", "evaluate_tool_response")
 
         child_graph = child_builder.compile()
         save_langgraph_graph("backend/images/tool_box_graph.png", child_graph)
