@@ -11,11 +11,8 @@ from backend.helpers.helpers import save_langgraph_graph
 from backend.helpers.lang_tools import *
 
 from pydantic import ValidationError
-from dotenv import load_dotenv
 import json
 
-
-load_dotenv()
 
 llm = ChatOpenAI(
     model="gpt-4o-mini",
