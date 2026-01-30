@@ -13,6 +13,10 @@ from backend.helpers.lang_tools import *
 from pydantic import ValidationError
 import json
 
+from dotenv import load_dotenv
+import os
+
+load_dotenv(dotenv_path="backend/.env")
 
 llm = ChatOpenAI(
     model="gpt-4o-mini",
