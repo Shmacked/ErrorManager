@@ -2,7 +2,7 @@ from langgraph.graph import StateGraph, START, END
 from langchain_core.messages import AIMessage, SystemMessage, RemoveMessage, HumanMessage, ToolMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import tools_condition, ToolNode
-from langchain_ollama import ChatOllama, ChatOpenAI
+from langchain_openai import ChatOpenAI
 
 from backend.pydantic_models.langgraph_models import *
 from backend.pydantic_models.error_models import ErrorLogBase

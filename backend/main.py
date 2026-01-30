@@ -7,6 +7,9 @@ from backend.database import Base, engine
 import backend.db_models.db_models  # Ensure models are registered before create_all
 from backend.routes import error_logs, projects, chat
 
+from dotenv import load_dotenv
+load_dotenv()
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)

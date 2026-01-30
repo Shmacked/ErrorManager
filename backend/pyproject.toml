@@ -10,6 +10,7 @@ dependencies = [
     "ipython>=9.9.0",
     "langchain>=1.2.6",
     "langchain-ollama>=1.0.1",
+    "langchain-openai>=1.1.7",
     "pillow>=12.1.0",
     "python-dotenv>=1.2.1",
     "sqlalchemy>=2.0.46",
