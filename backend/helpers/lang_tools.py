@@ -7,6 +7,15 @@ from typing import List, Any
 
 
 @tool
+def count(data: list[Any]):
+    """
+    Counts the number of items in a list.
+    Parameters: data: list[Any]
+    Returns: int
+    """
+    return len(data)
+
+@tool
 def filter_data(data: list[Any], **kwargs):
     """
     Filters a list of objects based on the given keyword arguments.

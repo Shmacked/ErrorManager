@@ -17,13 +17,13 @@ class ErrorLogEvaluationLanggraphState(TypedDict, total=False):
 
 # Define your schema
 class EvaluationSchema(BaseModel):
-    # might could do an exit: bool for exiting
-    success: bool = Field(description="Whether the tool answered the user")
+    exit: bool = Field(description="Whether the tool should exit the graph")
+    success: bool = Field(description="Whether the tool answered the user's input or performed the task they asked for")
     response: str = Field(description="The actual content of the response")
 
 
 class SummaryLanggraphState(TypedDict):
-    messages: Annotated[list, add_messages]
+    messages: Annotated[List[Any], add_messages]
     summary: str
     user_input: Field(default="")
     tool_response: ToolMessage = Field(default={})
@@ -33,10 +33,10 @@ class SummaryLanggraphState(TypedDict):
 
 class ToolLanggraphState(TypedDict):
     user_input: Field(default="")
-    messages: Annotated[list, add_messages]
+    messages: Annotated[List[Any], add_messages]
     retry_counter: int = Field(default=0)
     route: str | None = Field(default=None)
     plan: str = Field(default="")
     tool_response: ToolMessage = Field(default={})
     tool_evaluation: EvaluationSchema = Field(default={})
-    tool_calls: List[ToolMessage] = Field(default=[])
+    tool_calls: Annotated[List[ToolMessage], add_messages]

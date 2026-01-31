@@ -14,7 +14,6 @@ from pydantic import ValidationError
 import json
 
 from dotenv import load_dotenv
-import os
 
 load_dotenv(dotenv_path="backend/.env")
 
@@ -28,6 +27,7 @@ available_models = [
     ProjectResponse,
 ]
 tools = [
+    count,
     get_current_date_time,
     get_projects,
     get_project,
@@ -137,6 +137,8 @@ def get_summary_graph():
         summary = state.get("summary", "")
         route = state.get("route")
         user_input = state.get("user_input", "")
+        tool_response = state.get("tool_response", {})
+        tool_evaluation = state.get("tool_evaluation", {})
 
         if len(messages) > 10:
             to_summarize = messages[:-10]
@@ -170,25 +172,26 @@ def get_summary_graph():
             You have proper responses to the user. You won't ever response with "__end__" or "", for instance.
         """
         print(f"{messages = }")
-        print(f"{tool_response}")
-        if tool_response:
+        print(f"{tool_evaluation = }")
+        if tool_evaluation:
+            print("CALL MODEL - TOOL EVALUATION")
             tool = next((tool for tool in tools if tool.name == tool_response.name), None)
             prompt = f"""
             {prompt}
-            You have a subordinate model made a tool call on your behalf. Here is a description of what the tool does:
-            {tool.description}
-            In the below ToolMessage is the result of the tool call from your subordinate model:
+            You have a subordinate model make tool calls on your behalf. Here is the last tool call:
             {tool_response}
-            It may not be as helpful, but here is the evaluation of the tool call:
-            {tool_evaluation}
-            The ToolMessage is more important than the evaluation.
-            Use the evaluation if the evaluation alludes to a problem with the tool call, or that the tool call was not successful.
-            Use this information to respond to the user's input.
-            DO NOT MAKE UP INFORMATION, ONLY RESPOND WITH THE INFORMATION YOU HAVE AVAILABLE TO YOU FROM ABOVE IN THE TOOLMESSAGE.
-            You do not let the user know that you are using a subordinate model, or that you are using tools.
-            A simple response is a perfectly valid response.
+            Your subordinate model also evaluated the tool calls made and provided the following feedback on the last tool call:
+            {tool_evaluation.response}
+            Within the feedback, you have:
+                - exit: True if the should exit the graph (doesn't apply to you), False otherwise
+                - success: True if the user's request could be fulfilled or answered in the last tool call, False otherwise
+                - response: the response from the tool call, if any. It can be just the results from the tool call, or a description of the results.
+            Use the feedback to respond to the user's input.
+            DO NOT MAKE UP INFORMATION, ONLY RESPOND WITH THE INFORMATION YOU HAVE AVAILABLE TO YOU FROM ABOVE IN THE TOOLMESSAGE AND FEEDBACK.
+            You do not let the user know that you are using a subordinate model or tools. A simple response is a perfectly valid response.
             """
         else:
+            print("CALL MODEL - NO TOOL EVALUATION")
             prompt = f"""
             You have a subordinate model that can access the tools you see listed:
             {
@@ -205,6 +208,8 @@ def get_summary_graph():
             IF YOU THINK IT REQUIRES A TOOL CALL OR THAT IT CAN BE PERFORMED WITH A TOOL CALL, RETURN ONLY THE STRING "TOOLBOX" AS YOUR RESPONSE.
             You do not have direct access to any of the tools you see listed, but you have indirect access to them through your subordinate model.
             It can make tool calls on your behalf, you need only to respond with the string "TOOLBOX" as your response and it will do the rest.
+            It will also determine if the user's request can be fulfilled or answered based on the user's input and the tools available to it, and if there is sufficient data from the user to perform the task.
+            Because of this, you don't ask the user to provide any additional information, you only respond with the string "TOOLBOX" as your response and it will do the rest.
             This can include the user asking you to make a tool call, or you deciding to make a tool call yourself.
             Just to reiterate, return ONLY THE STRING "TOOLBOX" as your response to pass it to the subordinate model.
             You don't let the user know that you are using a subordinate model, or that you are using tools.
@@ -220,7 +225,7 @@ def get_summary_graph():
         response = llm.invoke(prompt)
 
         # print(f"{prompt = }")
-        # print(f"{response}")
+        print(f"CALLED MODEL: {response}")
 
         if response.content == "TOOLBOX":
             return {"route": "toolbox"}
@@ -266,16 +271,12 @@ def get_summary_graph():
                 HumanMessage(content=f"{user_input}")
             ])
 
-            print(f"{response = }")
-
             print("END PLAN")
 
             if response.content == "__end__":
                 return {
-                    "messages": [
-                        ToolMessage(name="tool_box", content="__end__"),
-                        HumanMessage(content="I'm sorry, I'm unable to create a plan to achieve the user's input with the given tools.")
-                    ], 
+                    "tool_evaluation": None,
+                    "tool_response": None,
                     "route": END
                 }
 
@@ -292,13 +293,13 @@ def get_summary_graph():
 
             print("START TOOL BOX")
 
-            print(f"{'\n'.join([str(tool_call) for tool_call in tool_calls])}")
-
             tool_response = llm_with_tools.invoke(
                 [
                     SystemMessage(content=f"""
-                    YOUR ONE AND ONLY JOB IS TO PERFORM THE PROPER TOOL CALLS AND RETURN THE RESULTS BASED ON THE PLAN PROVIDED TO YOU AND ANY DATA GIVEN TO YOU.
+                    YOUR ONE AND ONLY JOB IS TO PERFORM THE PROPER TOOL CALLS BASED ON THE PLAN PROVIDED TO YOU AND ANY DATA GIVEN TO YOU.
+                    YOU DO NOT SPEAK OR GIVE FEEDBACK. YOU ONLY MAKE TOOL CALLS.
                     IMPORTANT: YOU DO NOT MAKE A PLAN, YOU EXECUTE THE PLAN PROVIDED TO YOU.
+                    YOU EXECUTE TOOL CALLS EVEN IF THEY WOULD RESULT IN AN ERROR.
                     You have these tools available to you:
                     {tools}
                     Here are the available models you can use to parse or filter data:
@@ -306,16 +307,11 @@ def get_summary_graph():
                     Here is the plan to be executed:
                     {plan}
                     You might see additional feedback below this message that might help you follow the plan.
-                    If you are thinking about outputting "", explain why.
-                    Tell me why you also might be struggling to follow the plan.
                     Here are the tool calls you have made so far:
                     {tool_calls}
                     """)
-                ] + messages[-5:]
+                ] + messages
             )
-
-            print(f"Messages: {'\n'.join([message.content if message.content != "" else "tool call" for message in messages])}")
-            print(f"{tool_response = }")
 
             print("END TOOL BOX")
 
@@ -338,6 +334,8 @@ def get_summary_graph():
             plan = state.get("plan", "")
             tool_calls = state.get("tool_calls", [])
 
+            tool_calls = [message for message in messages if isinstance(message, ToolMessage)]
+
             llm_with_schema = llm.with_structured_output(EvaluationSchema)
 
             print("START EVALUATE TOOL")
@@ -346,23 +344,30 @@ def get_summary_graph():
             evaluation = llm_with_schema.invoke([
                 SystemMessage(content=f"""
                     Your one and only job is to evaluate the tool response and return the results based on the User's input.
-                    The main question goal is does the tool response answer the User's input or perform the task they asked for?
+                    The main goal is to determine if the tool response answers the User's input or performs the task they asked for.
+                    Here are the tools available to your subordinate model:
+                    {tools}
                     Here is the User's input: {user_input}.
                     Here is the tool response to be evaluated: {tool_message}.
-                    You do not make up any information, you only answer based on the tool response and the User's input.
-                    You can not make tool calls, you only answer based on the tool response and the User's input.
-                    If the tool response answers the User's input or performs the task they asked for, the success should be True and the response should be the tool response. This is largely determined by if there was an error in the tool call.
-                    If the tool response does not answer the User's input or perform the task they asked for, the success should be False and the response should be the tool response.
-                    If the tool is successful, return the tool response as the response.
+                    Here are the tool calls made so far: {tool_calls}
+                    You do not make up any information, you only answer based on the tool response, tool calls, and the User's input.
+                    You can not make tool calls, you only answer based on the tool response, tool calls, and the User's input.
+                    If the tool response and tool calls answers the User's input or performs the task they asked for, the success should be True, exit should be True, and the response should be "". This is largely determined by if there was an error in the tool call.
+                    If the tool response and tool calls do not answer the User's input or perform the task they asked for, the success should be False, exit should be False, and the response should be the tool response.
+                    If the tool is successful, return "" as the your response, exit should be True, and success should be True.
+                    Here is the plan to be executed: {plan}
+                    If the tool call errors, you need to determine if the error is from a bad tool call, or if the error is from a lack of data (e.g. no projects found).
+                    If the error is from a bad tool call, then success should be False, exit should be False, and the response should be the tool response.
+                    If the error is from a lack of data (e.g. no projects found), then success should be False, exit should be True, and the response should reflect that there isn't enough data to complete the user's request.
+                    When exit is True, you never return a response like the error message. Using the previous tool calls, you should be able to determine what went wrong and respond accordingly.
+                    Attached is a list of all of the messages in the conversation, use these to answer if the exit state should be True or False:
                     """
                 )
-            ])
-            print(f"{tool_message = }")
-            print(f"{evaluation = }")
-            print("END EVALUATION")
+            ] + messages)
 
-            if evaluation.success:
+            if evaluation.exit:
                 print("END EVALUATION: SUCCESS")
+                evaluation.response = "\n".join([str(tool_call) for tool_call in tool_calls])
                 return {"route": END, "tool_evaluation": evaluation, "tool_response": tool_message, "tool_calls": [tool_message]}
             else:
                 print("END EVALUATION: FAILURE")
@@ -395,9 +400,15 @@ def get_summary_graph():
 
     toolbox_graph = get_toolbox_graph()
 
+    def initialize(state: SummaryLanggraphState) -> SummaryLanggraphState:
+        # because of the checkpointer, it holds onto the state of the previous run, so we need to initialize the state of
+        # the tool_response and tool_evaluation to None to avoid the previous run's state from being used
+        return {"tool_response": None, "tool_evaluation": None}
+
     def call_toolbox(state: SummaryLanggraphState) -> SummaryLanggraphState:
         messages = state.get("messages", [])
         tool_response = state.get("tool_response", {})
+        tool_evaluation = state.get("tool_evaluation", {})
         route = state.get("route", None)
         user_input = state.get("user_input", "")
         summary = state.get("summary", "")
@@ -408,20 +419,23 @@ def get_summary_graph():
         # 2. Invoke the child graph
         result = toolbox_graph.invoke(child_input)
         
-        # 3. Return only the final message to the parent state
+        # 3. Return what you need to to the parent state
         # This prevents the parent's 'messages' list from seeing all the 
         # messy intermediate ToolMessages from the child.
-        final_msg = result["messages"][-1]
-        return {"messages": [final_msg], "route": None}
+        tool_response = result["tool_response"]
+        tool_evaluation = result["tool_evaluation"]
+        return {"route": None, "tool_response": tool_response, "tool_evaluation": tool_evaluation}
 
     # Build the Graph
     builder = StateGraph(SummaryLanggraphState)
+    builder.add_node("initialize", initialize)
     builder.add_node("assistant", call_model)
     builder.add_node("summarize", summarize_content)
     builder.add_node("toolbox", call_toolbox)
 
-    builder.set_entry_point("assistant")
+    builder.set_entry_point("initialize")
     
+    builder.add_edge("initialize", "assistant")
     builder.add_conditional_edges(
         "assistant",
         lambda state: state.get("route", "__end__"),
