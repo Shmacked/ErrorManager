@@ -566,7 +566,7 @@ def get_date_parser_graph():
         filter = response_json.get("filter", None)
         query = state.get("string_to_parse", "")
 
-        results = search_vector_db("projects", query, _filter=filter)
+        results = search_vector_db("project_errors", query, _filter=filter)
         return {"results": results}
     
     builder = StateGraph(DateParserLanggraphState)
