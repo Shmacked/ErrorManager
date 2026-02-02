@@ -4,6 +4,7 @@ from typing import Annotated, List
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
 from langchain_core.messages import ToolMessage
+from langchain_core.documents import Document
 
 # This is the state model for the Langgraph graph
 class ErrorLogEvaluationLanggraphState(TypedDict, total=False):
@@ -46,5 +47,5 @@ class DateParserLanggraphState(TypedDict):
     string_to_parse: str
     messages: Annotated[List[Any], add_messages]
     route: str | None = Field(default=None)
-    response_query: str = Field(default="")
-    response_json: dict = Field(default={})
+    results: List[Document] = Field(default=[])
+    retry_counter: int = Field(default=0)

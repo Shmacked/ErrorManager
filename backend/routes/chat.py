@@ -35,7 +35,7 @@ def get_date_parser(chat_input: ChatMessage, session_id: str = Depends(get_sessi
             "messages": [
                 ("user", chat_input.message)
             ],
-            "user_input": chat_input.message
+            "string_to_parse": chat_input.message
         },
         config=config
     )

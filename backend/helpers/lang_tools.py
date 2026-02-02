@@ -28,6 +28,23 @@ def filter_data(data: list[Any], **kwargs):
     return list(filtered_data)
 
 @tool
+def datetime_to_unix_timestamp(date_string: str):
+    """
+    Convert a datetime string to a Unix timestamp.
+    Parameters: date_string: str -> "YYYY-MM-DD HH:MM:SS"
+    Returns: int
+    """
+    # Define the format of your string
+    format_str = "%Y-%m-%d %H:%M:%S"
+
+    # Parse the string into a datetime object
+    dt_obj = datetime.strptime(date_string, format_str)
+
+    # Convert to POSIX timestamp
+    timestamp = dt_obj.timestamp()
+    return int(timestamp)
+
+@tool
 def current_unix_timestamp():
     """
     Get the current Unix timestamp.

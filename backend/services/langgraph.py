@@ -462,14 +462,18 @@ def get_date_parser_graph():
     
     def parse_date(state: DateParserLanggraphState) -> DateParserLanggraphState:
         string_to_parse = state.get("string_to_parse", "")
-        response_query = state.get("response_query", "")
+        messages = state.get("messages", [])
+        retry_counter = state.get("retry_counter", 0)
+
+        if retry_counter >= 10:
+            return {"messages": [AIMessage(content="I could not parse the date. Please try again.")], "route": END}
 
         _tools = [
             {
                 "name": tool.name,
                 "description": tool.description,
                 "arguments": tool.args
-            } for tool in [current_unix_timestamp]
+            } for tool in [current_unix_timestamp, datetime_to_unix_timestamp]
         ]
 
         prompt = f"""
@@ -485,39 +489,47 @@ def get_date_parser_graph():
           - $lt -> Less than (Before a certain time)
           - $gte -> Greater than or equal to
           - $lte -> Less than or equal to
-          - $and -> And (Multiple conditions)
-          - $or -> Or (Multiple conditions)
+          - $and -> One of the first 4 filters AND another one of the first 4 filters
+          - $or -> One of the first 4 filters OR another one of the first 4 filters
         Here are some examples of how to use each of the filters:
         {{
-            "creation_date_and_time": {{
-                "$gt": 1704067200 # unix timestamp
+            "filter": {{
+                "created_timestamp": {{
+                    "$gt": 1704067200 # unix timestamp
+                }}
             }}
         }}
         {{
-            "creation_date_and_time": {{
-                "$lt": 1704067200 # unix timestamp
+            "filter": {{
+                "created_timestamp": {{
+                    "$lt": 1704067200 # unix timestamp
+                }}
             }}
         }}
         {{
-            "creation_date_and_time": {{
+            "filter": {{
+                "created_timestamp": {{
                 "$gte": 1704067200 # unix timestamp
+                }}
             }}
         }}
         {{
-            "creation_date_and_time": {{
-                "$lte": 1704067200 # unix timestamp
+            "filter": {{
+                "created_timestamp": {{
+                    "$lte": 1704067200 # unix timestamp
+                }}
             }}
         }}
         {{
-            "creation_date_and_time": {{
-                "$and": [
+            "filter": {{
+                "$and": [ # has to be a time greater than and equal to a time AND less than and equal to a time
                     {{
-                        "creation_date_and_time": {{
+                        "created_timestamp": {{
                             "$gte": 1704067200 # unix timestamp
                         }}
                     }},
                     {{
-                        "creation_date_and_time": {{
+                        "created_timestamp": {{
                             "$lte": 1706745600 # unix timestamp
                         }}
                     }}
@@ -525,27 +537,88 @@ def get_date_parser_graph():
             }}
         }}
         {{
-            "creation_date_and_time": {{
-                "$or": [
+            "filter": {{
+                "$or": [ # has to be a time greater than and equal to a time OR less than and equal to a time
                     {{
-                        "creation_date_and_time": {{
+                        "created_timestamp": {{
                             "$gte": 1704067200 # unix timestamp
                         }}
                     }},
                     {{
-                        "creation_date_and_time": {{
+                        "created_timestamp": {{
                             "$lte": 1706745600 # unix timestamp
                         }}
+                    }}
+                ]
+            }}
+        }}
+        If you are going to have multiple: $gt, $lt, $gte, or $lte, you MUST use the $and or $or filter to combine the filters.
+        You ABSOLUTELY CANNOT do something like this:
+        {{
+            "filter": {{
+                "created_timestamp": {{
+                    "$gt": 1704067200 # unix timestamp,
+                    "$lt": 1704067200 # unix timestamp
+                }}
+            }}
+        }}
+        You MUST do something like this:
+        {{
+            "filter": {{
+                    "$and": [
+                        {{
+                            "created_timestamp": {{
+                                "$gt": 1704067200 # unix timestamp
+                            }}
+                        }},
+                        {{
+                            "created_timestamp": {{
+                                "$lt": 1704067200 # unix timestamp
+                            }}
+                        }}
+                    ]
+            }}
+        }}
+        or
+        {{
+            "filter": {{
+                    "$or": [
+                        {{
+                            "created_timestamp": {{
+                                "$gt": 1704067200 # unix timestamp
+                            }}
+                        }},
+                        {{
+                            "created_timestamp": {{
+                                "$lt": 1704067200 # unix timestamp
+                            }}
+                        }}
+                    ]
+            }}
+        }}
+        or
+        {{
+            "filter": {{
+                    "$and": [
+                        {{ # a time stamp greater than 1704067200
+                            "created_timestamp": {{
+                                "$gt": 1704067200
+                            }}
+                        }},
+                        {{ # a time stamp less than 1704067200
+                            "created_timestamp": {{
+                                "$lt": 1704067200
+                            }}
                     }}
                 ]
             }}
         }}
 
-        You will only return JSON, no other text.
-        Here is the example JSON:
+        You will only return JSON, no other text, not even Python comments (#) or JavaScript comments (//).
+        Here is one last example JSON:
         {{
             "filter": {{
-                "creation_date_and_time": {{
+                "created_timestamp": {{
                     "$gt": 1704067200 # unix timestamp
                 }}
             }}
@@ -553,21 +626,38 @@ def get_date_parser_graph():
         """
 
         _llm_with_tools = llm.bind_tools([current_unix_timestamp])
-        response = _llm_with_tools.invoke(prompt)
-        try:
-            response_json = JsonOutputParser().parse(response.content)
-        except:
-            return {}
+        response = _llm_with_tools.invoke([SystemMessage(content=prompt)] + messages)
 
-        return {"response_json": response_json}
+        return {"messages": [response]}
     
     def search_vector_db_node(state: DateParserLanggraphState) -> DateParserLanggraphState:
-        response_json = state.get("response_json", {})
-        filter = response_json.get("filter", None)
         query = state.get("string_to_parse", "")
+        messages = state.get("messages", [])
+        retry_counter = state.get("retry_counter", 0)
 
-        results = search_vector_db("project_errors", query, _filter=filter)
-        return {"results": results}
+        if retry_counter >= 10:
+            return {"messages": [AIMessage(content="I could not parse the date. Please try again.")], "route": END}
+
+        response_json = {}
+        response = messages[-1]
+
+        try:
+            if hasattr(response, "content"):
+                response_json = JsonOutputParser().parse(response.content)
+            else:
+                response_json = {}
+        except Exception as e:
+            return {"messages": [HumanMessage(content=f"There was an error parsing the date. Please try again. Error: {e}")], "route": "parse_date", "retry_counter": retry_counter + 1}
+        
+        _filter = response_json.get("filter", None)
+        if _filter is not None:
+            if (creation_date_and_time := _filter.get("created_timestamp", None)) is not None:
+                if len(creation_date_and_time) > 1 and isinstance(creation_date_and_time, dict):
+                    return {"messages": [HumanMessage(content="You did not use the $and or $or filter to combine the filters. Please use the $and or $or filter to combine the filters.")], "route": "parse_date", "retry_counter": retry_counter + 1}
+
+        results = search_vector_db("project_errors", query, _filter=_filter)
+        print("RESULTS: ", results)
+        return {"results": results, "route": END}
     
     builder = StateGraph(DateParserLanggraphState)
     builder.add_node("parse_date", parse_date)
@@ -581,7 +671,10 @@ def get_date_parser_graph():
         END: "search_vector_db"
     })
     builder.add_edge("date_parser", "parse_date")
-    builder.add_edge("search_vector_db", END)
+    builder.add_conditional_edges("search_vector_db", lambda state: state.get("route", END), {
+        "parse_date": "parse_date",
+        END: END
+    })
     
     graph = builder.compile()
 
