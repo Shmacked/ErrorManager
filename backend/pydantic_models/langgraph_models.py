@@ -40,3 +40,11 @@ class ToolLanggraphState(TypedDict):
     tool_response: ToolMessage = Field(default={})
     tool_evaluation: EvaluationSchema = Field(default={})
     tool_calls: Annotated[List[ToolMessage], add_messages]
+
+
+class DateParserLanggraphState(TypedDict):
+    string_to_parse: str
+    messages: Annotated[List[Any], add_messages]
+    route: str | None = Field(default=None)
+    response_query: str = Field(default="")
+    response_json: dict = Field(default={})

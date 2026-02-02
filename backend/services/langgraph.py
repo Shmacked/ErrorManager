@@ -2,6 +2,7 @@ from langgraph.graph import StateGraph, START, END
 from langchain_core.messages import AIMessage, SystemMessage, RemoveMessage, HumanMessage, ToolMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import tools_condition, ToolNode
+from langchain_core.output_parsers import JsonOutputParser
 from langchain_openai import ChatOpenAI
 
 from backend.pydantic_models.langgraph_models import *
@@ -9,6 +10,7 @@ from backend.pydantic_models.error_models import ErrorLogBase
 from backend.pydantic_models.project_models import ProjectResponse
 from backend.helpers.helpers import save_langgraph_graph
 from backend.helpers.lang_tools import *
+from backend.services.vector_db import search_vector_db
 
 from pydantic import ValidationError
 import json
@@ -454,4 +456,134 @@ def get_summary_graph():
     graph = builder.compile(checkpointer=MemorySaver())
 
     save_langgraph_graph("backend/images/summary_graph.png", graph)
+    return graph
+
+def get_date_parser_graph():
+    
+    def parse_date(state: DateParserLanggraphState) -> DateParserLanggraphState:
+        string_to_parse = state.get("string_to_parse", "")
+        response_query = state.get("response_query", "")
+
+        _tools = [
+            {
+                "name": tool.name,
+                "description": tool.description,
+                "arguments": tool.args
+            } for tool in [current_unix_timestamp]
+        ]
+
+        prompt = f"""
+        You look at input and provide the most likely date and time that the input is referring to or might would use for a date and time.
+        An input can imply the current date and time, or specify a date and time.
+        You then need to determine the constraints for the date and time based on the input and the time you determined is most likely relevant, and return a JSON object with the constraints using the "where" filter.
+        You have the following tools available to you:
+        {_tools}
+        Here is the string to be parsed:
+        {string_to_parse}
+        You have a "where" filter with the following options:
+          - $gt -> Greater than (After a certain time)
+          - $lt -> Less than (Before a certain time)
+          - $gte -> Greater than or equal to
+          - $lte -> Less than or equal to
+          - $and -> And (Multiple conditions)
+          - $or -> Or (Multiple conditions)
+        Here are some examples of how to use each of the filters:
+        {{
+            "creation_date_and_time": {{
+                "$gt": 1704067200 # unix timestamp
+            }}
+        }}
+        {{
+            "creation_date_and_time": {{
+                "$lt": 1704067200 # unix timestamp
+            }}
+        }}
+        {{
+            "creation_date_and_time": {{
+                "$gte": 1704067200 # unix timestamp
+            }}
+        }}
+        {{
+            "creation_date_and_time": {{
+                "$lte": 1704067200 # unix timestamp
+            }}
+        }}
+        {{
+            "creation_date_and_time": {{
+                "$and": [
+                    {{
+                        "creation_date_and_time": {{
+                            "$gte": 1704067200 # unix timestamp
+                        }}
+                    }},
+                    {{
+                        "creation_date_and_time": {{
+                            "$lte": 1706745600 # unix timestamp
+                        }}
+                    }}
+                ]
+            }}
+        }}
+        {{
+            "creation_date_and_time": {{
+                "$or": [
+                    {{
+                        "creation_date_and_time": {{
+                            "$gte": 1704067200 # unix timestamp
+                        }}
+                    }},
+                    {{
+                        "creation_date_and_time": {{
+                            "$lte": 1706745600 # unix timestamp
+                        }}
+                    }}
+                ]
+            }}
+        }}
+
+        You will only return JSON, no other text.
+        Here is the example JSON:
+        {{
+            "filter": {{
+                "creation_date_and_time": {{
+                    "$gt": 1704067200 # unix timestamp
+                }}
+            }}
+        }}
+        """
+
+        _llm_with_tools = llm.bind_tools([current_unix_timestamp])
+        response = _llm_with_tools.invoke(prompt)
+        try:
+            response_json = JsonOutputParser().parse(response.content)
+        except:
+            return {}
+
+        return {"response_json": response_json}
+    
+    def search_vector_db_node(state: DateParserLanggraphState) -> DateParserLanggraphState:
+        response_json = state.get("response_json", {})
+        filter = response_json.get("filter", None)
+        query = state.get("string_to_parse", "")
+
+        results = search_vector_db("projects", query, _filter=filter)
+        return {"results": results}
+    
+    builder = StateGraph(DateParserLanggraphState)
+    builder.add_node("parse_date", parse_date)
+    builder.add_node("date_parser", ToolNode([current_unix_timestamp]))
+    builder.add_node("search_vector_db", search_vector_db_node)
+
+    builder.add_edge(START, "parse_date")
+    builder.add_conditional_edges("parse_date", tools_condition,
+    {
+        "tools": "date_parser",
+        END: "search_vector_db"
+    })
+    builder.add_edge("date_parser", "parse_date")
+    builder.add_edge("search_vector_db", END)
+    
+    graph = builder.compile()
+
+    save_langgraph_graph("backend/images/date_parser_graph.png", graph)
     return graph

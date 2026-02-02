@@ -28,6 +28,16 @@ def filter_data(data: list[Any], **kwargs):
     return list(filtered_data)
 
 @tool
+def current_unix_timestamp():
+    """
+    Get the current Unix timestamp.
+    Returns the current Unix timestamp.
+    Parameters: None
+    Returns: int
+    """
+    return int(datetime.now().timestamp())
+
+@tool
 def get_current_date_time():
     """
     Get the current date and time.
