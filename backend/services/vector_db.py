@@ -24,6 +24,7 @@ vector_dbs = {
     COLLECTION_NAME: Chroma(persist_directory=PERSISTENT_DIRECTORY, embedding_function=EMBEDDING, collection_name=COLLECTION_NAME)
 }
 
+
 def get_vector_db(collection_name: str):
     """
     Get a vector database.
@@ -43,11 +44,10 @@ def add_documents_to_db(collection_name: str, docs: List[Document]) -> int:
     collection = get_vector_db(collection_name)
     
     # Chunk the documents properly
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=512, chunk_overlap=128)
     split_docs = text_splitter.split_documents(docs)
     
     collection.add_documents(split_docs)
-    collection.persist()
     return len(split_docs)
 
 def add_text_to_vector_db(collection_name: str, text: str, metadata: Optional[Dict[str, Any]] = None) -> int:
@@ -75,9 +75,9 @@ def add_file_to_vector_db(collection_name: str, file_as_bytes: bytes, metadata: 
             
     return add_documents_to_db(collection_name, docs)
 
-def search_vector_db(collection_name: str, query: str, k: int = 5) -> List[Document]:
+def search_vector_db(collection_name: str, query: str, k: int = 5, _filter: Optional[Dict[str, Any]] = None) -> List[Document]:
     collection = get_vector_db(collection_name)
-    return collection.similarity_search(query, k=k)
+    return collection.similarity_search(query, k=k, filter=_filter)
 
 def extract_entities(text: str) -> List[str]:
     nlp = spacy.load("en_core_web_sm")

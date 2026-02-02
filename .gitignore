@@ -1,3 +1,4 @@
 error_manager.db
 backend/images/
 backend/.env
+backend/chroma_store/
