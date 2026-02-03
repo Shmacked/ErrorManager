@@ -14,6 +14,7 @@ dependencies = [
     "langchain-ollama>=1.0.1",
     "langchain-openai>=1.1.7",
     "langchain-text-splitters>=1.1.0",
+    "numba>=0.59.0",
     "openai>=2.16.0",
     "pillow>=12.1.0",
     "pypdf>=6.6.2",
@@ -22,5 +23,6 @@ dependencies = [
     "python-multipart>=0.0.22",
     "spacy>=3.8.11",
     "sqlalchemy>=2.0.46",
+    "unstructured[pdf]>=0.11.0",
     "uvicorn>=0.40.0",
 ]

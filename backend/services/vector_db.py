@@ -1,10 +1,14 @@
 from dotenv import load_dotenv
 
+from fastapi import File, UploadFile
+
 from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import UnstructuredFileLoader
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+import tempfile
 
 from typing import Any, List, Optional, Dict
 from pathlib import Path
@@ -60,20 +64,43 @@ def add_text_to_vector_db(collection_name: str, text: str, metadata: Optional[Di
     doc = Document(page_content=text, metadata=metadata)
     return add_documents_to_db(collection_name, [doc])
 
-def add_file_to_vector_db(collection_name: str, file_as_bytes: bytes, metadata: Optional[Dict[str, Any]] = None) -> int:
+def add_file_to_vector_db(collection_name: str, file: UploadFile = File(...), metadata: Optional[Dict[str, Any]] = None) -> int:
     # Note: Since Unstructured is giving you trouble, make sure 
     # you've switched to a working loader like PyPDF or similar if needed.
-    loader = UnstructuredFileLoader(BytesIO(file_as_bytes))
-    docs = loader.load()
-    
+    with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename).suffix) as temp_file:
+        temp_file.write(file.file.read())
+        temp_file_path = temp_file.name
+    try:
+        loader = UnstructuredFileLoader(temp_file_path)
+        docs = loader.load()
+    finally:
+        Path(temp_file_path).unlink()
     # Merge custom metadata into the loaded docs if provided
     if metadata:
         for doc in docs:
             doc.metadata.update(metadata)
+    else:
+        metadata = {}
+    
+    metadata = {
+        "filename": file.filename,
+        "file_size": file.size,
+        "file_type": file.content_type,
+        "file_extension": Path(file.filename).suffix,
+    }
     
     metadata["created_timestamp"] = int(datetime.now().timestamp()) # Unix timestamp
             
     return add_documents_to_db(collection_name, docs)
+
+def delete_vector_db_data(collection_name: str, data_ids: Optional[list[int]] = None, metadata_filter: Optional[Dict[str, Any]] = None) -> None:
+    try:
+        collection = get_vector_db(collection_name)
+        collection.delete(ids=data_ids, where=metadata_filter)
+    except Exception as e:
+        print(e)
+        return False
+    return True
 
 def search_vector_db(collection_name: str, query: str, k: int = 5, _filter: Optional[Dict[str, Any]] = None) -> List[Document]:
     collection = get_vector_db(collection_name)

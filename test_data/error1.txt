@@ -1,0 +1,113 @@
+Traceback (most recent call last):
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\uvicorn\protocols\http\httptools_impl.py", line 416, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\uvicorn\middleware\proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\fastapi\applications.py", line 1135, in __call__      
+    await super().__call__(scope, receive, send)
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\starlette\applications.py", line 107, in __call__     
+    await self.middleware_stack(scope, receive, send)
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 186, in __call__    raise exc
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\starlette\middleware\errors.py", line 164, in __call__    await self.app(scope, receive, _send)
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 93, in __call__   
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\starlette\middleware\cors.py", line 144, in simple_response
+    await self.app(scope, receive, send)
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\starlette\middleware\exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\starlette\routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\starlette\routing.py", line 736, in app
+    await route.handle(scope, receive, send)
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\starlette\routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\fastapi\routing.py", line 115, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\starlette\_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\fastapi\routing.py", line 101, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\fastapi\routing.py", line 355, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\fastapi\routing.py", line 245, in run_endpoint_function
+    return await run_in_threadpool(dependant.call, **values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\starlette\concurrency.py", line 32, in run_in_threadpool
+    return await anyio.to_thread.run_sync(func)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\anyio\to_thread.py", line 63, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 2502, in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\anyio\_backends\_asyncio.py", line 986, in run        
+    result = context.run(func, *args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\routes\chat.py", line 33, in get_date_parser
+    result = date_parser_graph.invoke(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\langgraph\pregel\main.py", line 3071, in invoke       
+    for chunk in self.stream(
+                 ^^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\langgraph\pregel\main.py", line 2646, in stream       
+    for _ in runner.tick(
+             ^^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\langgraph\pregel\_runner.py", line 167, in tick       
+    run_with_retry(
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\langgraph\pregel\_retry.py", line 42, in run_with_retry
+    return task.proc.invoke(task.input, config)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\langgraph\_internal\_runnable.py", line 656, in invoke    input = context.run(step.invoke, input, config, **kwargs)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\langgraph\_internal\_runnable.py", line 400, in invoke    ret = self.func(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\services\langgraph.py", line 629, in parse_date
+    response = _llm_with_tools.invoke([SystemMessage(content=prompt)] + messages)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\langchain_core\runnables\base.py", line 5557, in invoke
+    return self.bound.invoke(
+           ^^^^^^^^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 402, in invoke
+    self.generate_prompt(
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 1121, in generate_prompt
+    return self.generate(prompt_messages, stop=stop, callbacks=callbacks, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 931, in generate
+    self._generate_with_cache(
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\langchain_core\language_models\chat_models.py", line 1233, in _generate_with_cache
+    result = self._generate(
+             ^^^^^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\langchain_openai\chat_models\base.py", line 1386, in _generate
+    raise e
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\langchain_openai\chat_models\base.py", line 1381, in _generate
+    raw_response = self.client.with_raw_response.create(**payload)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\openai\_legacy_response.py", line 364, in wrapped     
+    return cast(LegacyAPIResponse[R], func(*args, **kwargs))
+                                      ^^^^^^^^^^^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\openai\_utils\_utils.py", line 286, in wrapper        
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\openai\resources\chat\completions\completions.py", line 1192, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\openai\_base_client.py", line 1294, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "R:\Revature\Projects\ErrorManager\backend\.venv\Lib\site-packages\openai\_base_client.py", line 1067, in request        
+    raise self._make_status_error_from_response(err.response) from None
+openai.RateLimitError: Error code: 429 - {'error': {'message': 'Rate limit reached for gpt-4o-mini in organization org-aR453h4Vhn0x1qIOKDbuEpGM on tokens per min (TPM): Limit 200000, Used 200000, Requested 2587. Please try again in 776ms. Visit https://platform.openai.com/account/rate-limits to learn more.', 'type': 'tokens', 'param': None, 'code': 'rate_limit_exceeded'}}
+During task with name 'parse_date' and id 'e24329f2-3785-de19-0822-cc1c422e4d01'
