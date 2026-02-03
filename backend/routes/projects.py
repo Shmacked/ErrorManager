@@ -11,12 +11,12 @@ router = APIRouter(
 )
 
 @router.get("/", response_model=List[ProjectResponse])
-def get_projects(db: Session = Depends(get_db)):
+async def get_projects(db: Session = Depends(get_db)):
     projects = db.query(Project).all()
     return projects
 
 @router.post("/", response_model=ProjectResponse)
-def create_project(project: ProjectInput, db: Session = Depends(get_db)):
+async def create_project(project: ProjectInput, db: Session = Depends(get_db)):
     new_project = Project(**project.model_dump())
     db.add(new_project)
     db.commit()
@@ -24,21 +24,21 @@ def create_project(project: ProjectInput, db: Session = Depends(get_db)):
     return new_project
 
 @router.get("/id/{project_id}", response_model=ProjectResponse)
-def get_project_by_id(project_id: int, db: Session = Depends(get_db)):
+async def get_project_by_id(project_id: int, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
 
 @router.get("/uuid/{project_uuid}", response_model=ProjectResponse)
-def get_project_by_uuid(project_uuid: str, db: Session = Depends(get_db)):
+async def get_project_by_uuid(project_uuid: str, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.project_uuid == project_uuid).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
 
 @router.put("/id/{project_id}", response_model=ProjectResponse)
-def update_project_by_id(project_id: int, project: ProjectUpdate, db: Session = Depends(get_db)):
+async def update_project_by_id(project_id: int, project: ProjectUpdate, db: Session = Depends(get_db)):
     project_query = db.query(Project).filter(Project.id == project_id).first()
     if not project_query:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -49,7 +49,7 @@ def update_project_by_id(project_id: int, project: ProjectUpdate, db: Session = 
     return project_query
 
 @router.put("/uuid/{project_uuid}", response_model=ProjectResponse)
-def update_project_by_uuid(project_uuid: str, project: ProjectUpdate, db: Session = Depends(get_db)):
+async def update_project_by_uuid(project_uuid: str, project: ProjectUpdate, db: Session = Depends(get_db)):
     project_query = db.query(Project).filter(Project.project_uuid == project_uuid).first()
     if not project_query:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -60,7 +60,7 @@ def update_project_by_uuid(project_uuid: str, project: ProjectUpdate, db: Sessio
     return project_query
 
 @router.patch("/id/{project_id}", response_model=ProjectResponse)
-def patch_project_by_id(project_id: int, project: ProjectUpdate, db: Session = Depends(get_db)):
+async def patch_project_by_id(project_id: int, project: ProjectUpdate, db: Session = Depends(get_db)):
     project_query = db.query(Project).filter(Project.id == project_id).first()
     if not project_query:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -71,7 +71,7 @@ def patch_project_by_id(project_id: int, project: ProjectUpdate, db: Session = D
     return project_query
 
 @router.patch("/uuid/{project_uuid}", response_model=ProjectResponse)
-def patch_project_by_uuid(project_uuid: str, project: ProjectUpdate, db: Session = Depends(get_db)):
+async def patch_project_by_uuid(project_uuid: str, project: ProjectUpdate, db: Session = Depends(get_db)):
     project_query = db.query(Project).filter(Project.project_uuid == project_uuid).first()
     if not project_query:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -82,7 +82,7 @@ def patch_project_by_uuid(project_uuid: str, project: ProjectUpdate, db: Session
     return project_query
 
 @router.delete("/id/{project_id}", response_model=ProjectResponse)
-def delete_project_by_id(project_id: int, db: Session = Depends(get_db)):
+async def delete_project_by_id(project_id: int, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -91,7 +91,7 @@ def delete_project_by_id(project_id: int, db: Session = Depends(get_db)):
     return project
 
 @router.delete("/uuid/{project_uuid}", response_model=ProjectResponse)
-def delete_project_by_uuid(project_uuid: str, db: Session = Depends(get_db)):
+async def delete_project_by_uuid(project_uuid: str, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.project_uuid == project_uuid).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")

@@ -7,7 +7,7 @@ from langchain_openai import ChatOpenAI
 
 from backend.pydantic_models.langgraph_models import *
 from backend.pydantic_models.error_models import ErrorLogBase
-from backend.pydantic_models.project_models import ProjectResponse
+from backend.pydantic_models.project_models import ProjectResponse, ProjectInput, ProjectUpdate
 from backend.helpers.helpers import save_langgraph_graph
 from backend.helpers.lang_tools import *
 from backend.services.vector_db import search_vector_db
@@ -27,6 +27,8 @@ llm = ChatOpenAI(
 
 available_models = [
     ProjectResponse,
+    ProjectInput,
+    ProjectUpdate,
 ]
 tools = [
     count,
@@ -37,6 +39,15 @@ tools = [
     update_project,
     delete_projects
 ]
+
+date_parser_tools = [
+    get_current_date_time,
+    current_unix_timestamp, 
+    datetime_to_unix_timestamp,
+    calc,
+    datetime_to_day_of_week,
+]
+
 llm_with_tools = llm.bind_tools(tools)
 
 
@@ -196,6 +207,7 @@ def get_summary_graph():
             print("CALL MODEL - NO TOOL EVALUATION")
             prompt = f"""
             You have a subordinate model that can access the tools you see listed:
+
             {
                 [
                     {
@@ -206,8 +218,14 @@ def get_summary_graph():
                     for tool in tools
                 ]
             }
+
+            Your subordinate model has access to the following models:
+            {[model.model_fields for model in available_models]}
+            
             {prompt}
-            IF YOU THINK IT REQUIRES A TOOL CALL OR THAT IT CAN BE PERFORMED WITH A TOOL CALL, RETURN ONLY THE STRING "TOOLBOX" AS YOUR RESPONSE.
+
+            IF YOU THINK IT REQUIRES A TOOL CALL OR THAT IT CAN BE PERFORMED WITH A TOOL CALL BASED OFF OF THE USER'S INPUT AND THE TOOLS AVAILABLE TO YOU, RETURN ONLY THE STRING "TOOLBOX" AS YOUR RESPONSE.
+            You respond with natural language when you can, you do not need to use the tools unless it is absolutely necessary.
             You do not have direct access to any of the tools you see listed, but you have indirect access to them through your subordinate model.
             It can make tool calls on your behalf, you need only to respond with the string "TOOLBOX" as your response and it will do the rest.
             It will also determine if the user's request can be fulfilled or answered based on the user's input and the tools available to it, and if there is sufficient data from the user to perform the task.
@@ -354,7 +372,10 @@ def get_summary_graph():
                     Here are the tool calls made so far: {tool_calls}
                     You do not make up any information, you only answer based on the tool response, tool calls, and the User's input.
                     You can not make tool calls, you only answer based on the tool response, tool calls, and the User's input.
-                    If the tool response and tool calls answers the User's input or performs the task they asked for, the success should be True, exit should be True, and the response should be "". This is largely determined by if there was an error in the tool call.
+                    If the tool response and tool calls answers the User's input or performs the task they asked for, the success should be True, exit should be True, and the response should be "".
+                    Success is largely determined by if there was an error in the tool call, but ALSO IF THE LAST TOOL CALL NAME AND DESCRIPTION SEEMS TO FULFILL THE LAST TASK OF THE PLAN GIVEN TO YOU.
+                    USE THE LAST TOOL CALL TO HELP DETERMINE WHERE YOU ARE IN THE PLAN AND THEN IF YOU CAN EXIT.
+                    For example, if the plan's last task is to update a project, and get_project(s) was the last tool call, based off of their description and names, get_project(s) is not sufficient to update the project, so there is still more work to be done.
                     If the tool response and tool calls do not answer the User's input or perform the task they asked for, the success should be False, exit should be False, and the response should be the tool response.
                     If the tool is successful, return "" as the your response, exit should be True, and success should be True.
                     Here is the plan to be executed: {plan}
@@ -463,25 +484,26 @@ def get_date_parser_graph():
     def parse_date(state: DateParserLanggraphState) -> DateParserLanggraphState:
         string_to_parse = state.get("string_to_parse", "")
         messages = state.get("messages", [])
-        retry_counter = state.get("retry_counter", 0)
+        parse_date_retry_counter = state.get("parse_date_retry_counter", 0)
 
-        if retry_counter >= 10:
+        print("START PARSE DATE")
+
+        # print(f"{messages = }")
+
+        # print([tool_call for tool_call in messages if isinstance(tool_call, ToolMessage)])
+
+        if parse_date_retry_counter >= 10:
+            print("END PARSE DATE: FAILURE")
             return {"messages": [AIMessage(content="I could not parse the date. Please try again.")], "route": END}
-
-        _tools = [
-            {
-                "name": tool.name,
-                "description": tool.description,
-                "arguments": tool.args
-            } for tool in [current_unix_timestamp, datetime_to_unix_timestamp]
-        ]
 
         prompt = f"""
         You look at input and provide the most likely date and time that the input is referring to or might would use for a date and time.
+        You can use the datetime_to_day_of_week tool to convert a datetime string to the day of the week, so if the input is "this past Monday", you can use the datetime_to_day_of_week tool to and the current date and time to determine the date and time to calculate how long ago that was.
         An input can imply the current date and time, or specify a date and time.
         You then need to determine the constraints for the date and time based on the input and the time you determined is most likely relevant, and return a JSON object with the constraints using the "where" filter.
         You have the following tools available to you:
-        {_tools}
+        {[{"name": _tool.name, "description": _tool.description, "arguments": _tool.args} for _tool in date_parser_tools]}
+        You must use the calc tool if you need to perform a mathematical operation between two numbers, such as adding two unix timestamps together, or subtracting two unix timestamps from each other.
         Here is the string to be parsed:
         {string_to_parse}
         You have a "where" filter with the following options:
@@ -625,18 +647,26 @@ def get_date_parser_graph():
         }}
         """
 
-        _llm_with_tools = llm.bind_tools([current_unix_timestamp])
+        _llm_with_tools = llm.bind_tools(date_parser_tools)
         response = _llm_with_tools.invoke([SystemMessage(content=prompt)] + messages)
 
-        return {"messages": [response]}
+        # print("RESPONSE: ", response)
+        print("messages: ", messages[-2:])
+
+        print("END PARSE DATE")
+
+        return {"messages": [response], "parse_date_retry_counter": parse_date_retry_counter + 1}
     
     def search_vector_db_node(state: DateParserLanggraphState) -> DateParserLanggraphState:
         query = state.get("string_to_parse", "")
         messages = state.get("messages", [])
-        retry_counter = state.get("retry_counter", 0)
+        search_vector_db_retry_counter = state.get("search_vector_db_retry_counter", 0)
 
-        if retry_counter >= 10:
-            return {"messages": [AIMessage(content="I could not parse the date. Please try again.")], "route": END}
+        print("START SEARCH VECTOR DB")
+
+        if search_vector_db_retry_counter >= 10:
+            print("END SEARCH VECTOR DB: FAILURE 1")
+            return {"messages": [HumanMessage(content="I could not parse the date. Please try again.")], "route": END}
 
         response_json = {}
         response = messages[-1]
@@ -647,21 +677,27 @@ def get_date_parser_graph():
             else:
                 response_json = {}
         except Exception as e:
-            return {"messages": [HumanMessage(content=f"There was an error parsing the date. Please try again. Error: {e}")], "route": "parse_date", "retry_counter": retry_counter + 1}
+            print("END SEARCH VECTOR DB: FAILURE 2")
+            return {"messages": [HumanMessage(content=f"There was an error parsing the date. Please try again. Error: {e}")], "route": "parse_date", "search_vector_db_retry_counter": search_vector_db_retry_counter + 1}
         
         _filter = response_json.get("filter", None)
         if _filter is not None:
             if (creation_date_and_time := _filter.get("created_timestamp", None)) is not None:
                 if len(creation_date_and_time) > 1 and isinstance(creation_date_and_time, dict):
-                    return {"messages": [HumanMessage(content="You did not use the $and or $or filter to combine the filters. Please use the $and or $or filter to combine the filters.")], "route": "parse_date", "retry_counter": retry_counter + 1}
+                    print("END SEARCH VECTOR DB: FAILURE 3")
+                    return {"messages": [HumanMessage(content="You did not use the $and or $or filter to combine the filters. Please use the $and or $or filter to combine the filters.")], "route": "parse_date", "search_vector_db_retry_counter": search_vector_db_retry_counter + 1}
 
         results = search_vector_db("project_errors", query, _filter=_filter)
+        
         print("RESULTS: ", results)
+        
+        print("END SEARCH VECTOR DB")
+
         return {"results": results, "route": END}
     
     builder = StateGraph(DateParserLanggraphState)
     builder.add_node("parse_date", parse_date)
-    builder.add_node("date_parser", ToolNode([current_unix_timestamp]))
+    builder.add_node("date_parser", ToolNode(date_parser_tools))
     builder.add_node("search_vector_db", search_vector_db_node)
 
     builder.add_edge(START, "parse_date")

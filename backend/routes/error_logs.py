@@ -16,7 +16,7 @@ router = APIRouter(
 
 # get the error logs for a project
 @router.get("/project_id/{project_id}", response_model=List[ErrorLogResponse])
-def get_error_logs_by_project_id(project_id: int, db: Session = Depends(get_db)):
+async def get_error_logs_by_project_id(project_id: int, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -24,7 +24,7 @@ def get_error_logs_by_project_id(project_id: int, db: Session = Depends(get_db))
     return error_logs
 
 @router.get("/project_uuid/{project_uuid}", response_model=List[ErrorLogResponse])
-def get_error_logs_by_project_uuid(project_uuid: str, db: Session = Depends(get_db)):
+async def get_error_logs_by_project_uuid(project_uuid: str, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.project_uuid == project_uuid).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -33,7 +33,7 @@ def get_error_logs_by_project_uuid(project_uuid: str, db: Session = Depends(get_
 
 # create a new error log for a project
 @router.post("/project_id/{project_id}", response_model=ErrorLogResponse)
-def create_error_log_by_project_id(project_id: int, error_log: ErrorLogInput, db: Session = Depends(get_db)):
+async def create_error_log_by_project_id(project_id: int, error_log: ErrorLogInput, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -46,7 +46,7 @@ def create_error_log_by_project_id(project_id: int, error_log: ErrorLogInput, db
     return new_error_log
 
 @router.post("/project_uuid/{project_uuid}", response_model=ErrorLogResponse)
-def create_error_log_by_project_uuid(project_uuid: str, error_log: ErrorLogInput, db: Session = Depends(get_db)):
+async def create_error_log_by_project_uuid(project_uuid: str, error_log: ErrorLogInput, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.project_uuid == project_uuid).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -59,21 +59,21 @@ def create_error_log_by_project_uuid(project_uuid: str, error_log: ErrorLogInput
     return new_error_log
 
 @router.get("/id/{error_log_id}", response_model=ErrorLogResponse)
-def get_error_log_by_error_log_id(error_log_id: int, db: Session = Depends(get_db)):
+async def get_error_log_by_error_log_id(error_log_id: int, db: Session = Depends(get_db)):
     error_log = db.query(ErrorLog).filter(ErrorLog.id == error_log_id).first()
     if not error_log:
         raise HTTPException(status_code=404, detail="Error log not found")
     return error_log
 
 @router.get("/log_id/{error_log_log_id}", response_model=ErrorLogResponse)
-def get_error_log_by_error_log_log_id(error_log_log_id: str, db: Session = Depends(get_db)):
+async def get_error_log_by_error_log_log_id(error_log_log_id: str, db: Session = Depends(get_db)):
     error_log = db.query(ErrorLog).filter(ErrorLog.log_id == error_log_log_id).first()
     if not error_log:
         raise HTTPException(status_code=404, detail="Error log not found")
     return error_log
 
 @router.put("/id/{error_log_id}", response_model=ErrorLogResponse)
-def update_error_log_by_error_log_id(error_log_id: int, error_log_update: ErrorLogUpdate, db: Session = Depends(get_db)):
+async def update_error_log_by_error_log_id(error_log_id: int, error_log_update: ErrorLogUpdate, db: Session = Depends(get_db)):
     error_log = db.query(ErrorLog).filter(ErrorLog.id == error_log_id).first()
     if not error_log:
         raise HTTPException(status_code=404, detail="Error log not found")
@@ -90,7 +90,7 @@ def update_error_log_by_error_log_id(error_log_id: int, error_log_update: ErrorL
     return error_log
 
 @router.put("/log_id/{error_log_log_id}", response_model=ErrorLogResponse)
-def update_error_log_by_error_log_log_id(error_log_log_id: str, error_log_update: ErrorLogUpdate, db: Session = Depends(get_db)):
+async def update_error_log_by_error_log_log_id(error_log_log_id: str, error_log_update: ErrorLogUpdate, db: Session = Depends(get_db)):
     error_log = db.query(ErrorLog).filter(ErrorLog.log_id == error_log_log_id).first()
     if not error_log:
         raise HTTPException(status_code=404, detail="Error log not found")
@@ -107,7 +107,7 @@ def update_error_log_by_error_log_log_id(error_log_log_id: str, error_log_update
     return error_log
 
 @router.patch("/id/{error_log_id}", response_model=ErrorLogResponse)
-def patch_error_log_by_error_log_id(error_log_id: int, error_log_update: ErrorLogUpdate, db: Session = Depends(get_db)):
+async def patch_error_log_by_error_log_id(error_log_id: int, error_log_update: ErrorLogUpdate, db: Session = Depends(get_db)):
     error_log = db.query(ErrorLog).filter(ErrorLog.id == error_log_id).first()
     if not error_log:
         raise HTTPException(status_code=404, detail="Error log not found")
@@ -124,7 +124,7 @@ def patch_error_log_by_error_log_id(error_log_id: int, error_log_update: ErrorLo
     return error_log
 
 @router.patch("/log_id/{error_log_log_id}", response_model=ErrorLogResponse)
-def patch_error_log_by_error_log_log_id(error_log_log_id: str, error_log_update: ErrorLogUpdate, db: Session = Depends(get_db)):
+async def patch_error_log_by_error_log_log_id(error_log_log_id: str, error_log_update: ErrorLogUpdate, db: Session = Depends(get_db)):
     error_log = db.query(ErrorLog).filter(ErrorLog.log_id == error_log_log_id).first()
     if not error_log:
         raise HTTPException(status_code=404, detail="Error log not found")
@@ -141,7 +141,7 @@ def patch_error_log_by_error_log_log_id(error_log_log_id: str, error_log_update:
     return error_log
 
 @router.delete("/id/{error_log_id}", response_model=ErrorLogResponse)
-def delete_error_log_by_error_log_id(error_log_id: int, db: Session = Depends(get_db)):
+async def delete_error_log_by_error_log_id(error_log_id: int, db: Session = Depends(get_db)):
     error_log = db.query(ErrorLog).filter(ErrorLog.id == error_log_id).first()
     if not error_log:
         raise HTTPException(status_code=404, detail="Error log not found")
@@ -150,7 +150,7 @@ def delete_error_log_by_error_log_id(error_log_id: int, db: Session = Depends(ge
     return error_log
 
 @router.delete("/log_id/{error_log_log_id}", response_model=ErrorLogResponse)
-def delete_error_log_by_error_log_log_id(error_log_log_id: str, db: Session = Depends(get_db)):
+async def delete_error_log_by_error_log_log_id(error_log_log_id: str, db: Session = Depends(get_db)):
     error_log = db.query(ErrorLog).filter(ErrorLog.log_id == error_log_log_id).first()
     if not error_log:
         raise HTTPException(status_code=404, detail="Error log not found")
@@ -159,7 +159,7 @@ def delete_error_log_by_error_log_log_id(error_log_log_id: str, db: Session = De
     return error_log
 
 @router.get("/project_id/{error_log_project_id}/id/{error_log_id}", response_model=ErrorLogResponse)
-def get_error_log_by_project_id_and_id(error_log_project_id: int, error_log_id: int, db: Session = Depends(get_db)):
+async def get_error_log_by_project_id_and_id(error_log_project_id: int, error_log_id: int, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == error_log_project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -169,7 +169,7 @@ def get_error_log_by_project_id_and_id(error_log_project_id: int, error_log_id: 
     return error_log
 
 @router.put("/project_id/{error_log_project_id}/id/{error_log_id}", response_model=ErrorLogResponse)
-def update_error_log_by_project_id_and_id(error_log_project_id: int, error_log_id: int, error_log_update: ErrorLogUpdate, db: Session = Depends(get_db)):
+async def update_error_log_by_project_id_and_id(error_log_project_id: int, error_log_id: int, error_log_update: ErrorLogUpdate, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == error_log_project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -183,7 +183,7 @@ def update_error_log_by_project_id_and_id(error_log_project_id: int, error_log_i
     return error_log
 
 @router.patch("/project_id/{error_log_project_id}/id/{error_log_id}", response_model=ErrorLogResponse)
-def patch_error_log_by_project_id_and_id(error_log_project_id: int, error_log_id: int, error_log_update: ErrorLogUpdate, db: Session = Depends(get_db)):
+async def patch_error_log_by_project_id_and_id(error_log_project_id: int, error_log_id: int, error_log_update: ErrorLogUpdate, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == error_log_project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -197,7 +197,7 @@ def patch_error_log_by_project_id_and_id(error_log_project_id: int, error_log_id
     return error_log
 
 @router.delete("/project_id/{error_log_project_id}/id/{error_log_id}", response_model=ErrorLogResponse)
-def delete_error_log_by_project_id_and_id(error_log_project_id: int, error_log_id: int, db: Session = Depends(get_db)):
+async def delete_error_log_by_project_id_and_id(error_log_project_id: int, error_log_id: int, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == error_log_project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")

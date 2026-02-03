@@ -14,7 +14,7 @@ router = APIRouter(
 )
 
 @router.post("/summary")
-def get_summary(chat_input: ChatMessage, session_id: str = Depends(get_session_id)):
+async def get_summary(chat_input: ChatMessage, session_id: str = Depends(get_session_id)):
     config = {"configurable": {"thread_id": session_id}}
     result = summary_graph.invoke(
         {
@@ -28,7 +28,7 @@ def get_summary(chat_input: ChatMessage, session_id: str = Depends(get_session_i
     return result["messages"][-1].content
 
 @router.post("/date_parser")
-def get_date_parser(chat_input: ChatMessage, session_id: str = Depends(get_session_id)):
+async def get_date_parser(chat_input: ChatMessage, session_id: str = Depends(get_session_id)):
     config = {"configurable": {"thread_id": session_id}}
     result = date_parser_graph.invoke(
         {

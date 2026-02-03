@@ -48,4 +48,5 @@ class DateParserLanggraphState(TypedDict):
     messages: Annotated[List[Any], add_messages]
     route: str | None = Field(default=None)
     results: List[Document] = Field(default=[])
-    retry_counter: int = Field(default=0)
+    parse_date_retry_counter: int = Field(default=0)
+    search_vector_db_retry_counter: int = Field(default=0)
